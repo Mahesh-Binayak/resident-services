@@ -1,0 +1,52 @@
+name: SonarCloud Pull Request Analysis for Develop
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened] # Trigger on PR creation, new commits, or reopening
+    branches:
+      - develop # Only trigger for PRs targeting the 'develop' branch
+
+jobs:
+  sonar_quality_gate:
+    name: SonarCloud Quality Gate Check
+    runs-on: ubuntu-latest # Or your preferred runner environment
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Mandatory for SonarCloud's "new code" analysis on PRs
+          # It fetches the full Git history needed for accurate diffs.
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3 # Using v3 as per your previous YAML
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Run SonarCloud analysis
+        env:
+          # GITHUB_TOKEN is automatically provided by GitHub Actions for API interactions (e.g., setting PR status)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # SONAR_TOKEN is your personal/project token for authenticating with SonarCloud
+          # This must be stored as a secret in your GitHub repository/organization settings
+          SONAR_TOKEN: a315a47e75505c2930e1925ee607bc989a241a91
+        run: |
+          # Navigate to the directory containing your main pom.xml if it's not at the repository root
+          cd resident
+
+          # Execute the Maven build and Sonar analysis
+          # The 'verify' phase will run tests and generate JaCoCo reports (if configured in your pom.xml)
+          # The 'sonar' goal will then send the analysis results and coverage reports to SonarCloud
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=mahesh-devsecops_resident \
+            -Dsonar.organization=mahesh-devsecops \
+            -Dsonar.host.url=https://sonarcloud.io
